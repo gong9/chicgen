@@ -11,6 +11,7 @@ export interface GenerationSettings {
 export interface GeneratedResult {
   id: string;
   imageUrl: string;
+  videoUrl?: string;
   timestamp: number;
   settings?: GenerationSettings;
 }

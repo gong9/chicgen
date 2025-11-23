@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Sparkles, History, Trash2, CheckCircle } from 'lucide-react';
+import { Download, Sparkles, History, Trash2, CheckCircle, Video, PlayCircle } from 'lucide-react';
 import { translations } from '../translations';
 import { Language, GeneratedResult } from '../types';
 
@@ -10,6 +10,8 @@ interface ResultDisplayProps {
   language: Language;
   onSelectHistory: (item: GeneratedResult) => void;
   onClearHistory: () => void;
+  onGenerateVideo: (id: string) => void;
+  isVideoGenerating: boolean;
 }
 
 export const ResultDisplay: React.FC<ResultDisplayProps> = ({ 
@@ -18,7 +20,9 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({
   isGenerating, 
   language,
   onSelectHistory,
-  onClearHistory
+  onClearHistory,
+  onGenerateVideo,
+  isVideoGenerating
 }) => {
   const t = translations[language].result;
 
@@ -27,6 +31,16 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({
     const link = document.createElement('a');
     link.href = currentImage.imageUrl;
     link.download = `chicgen-model-${currentImage.timestamp}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadVideo = () => {
+    if (!currentImage?.videoUrl) return;
+    const link = document.createElement('a');
+    link.href = currentImage.videoUrl;
+    link.download = `chicgen-video-${currentImage.timestamp}.mp4`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -44,8 +58,17 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({
             </h2>
             <p className="text-sm text-slate-500 mt-1">{t.subtitle}</p>
         </div>
-        {generatedImage && !isGenerating && (
-             <div className="flex gap-2">
+        <div className="flex gap-2">
+            {generatedImage && !isGenerating && !isVideoGenerating && !currentImage.videoUrl && (
+                <button 
+                  onClick={() => onGenerateVideo(currentImage.id)}
+                  className="flex items-center gap-2 text-xs font-medium bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                >
+                  <Video className="h-3.5 w-3.5" />
+                  {t.generateVideo}
+                </button>
+            )}
+            {generatedImage && !isGenerating && (
                  <button 
                    onClick={handleDownload}
                    className="flex items-center gap-2 text-xs font-medium bg-slate-900 text-white px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors shadow-sm"
@@ -53,20 +76,42 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({
                     <Download className="h-3.5 w-3.5" />
                     {t.download}
                  </button>
-             </div>
-        )}
+            )}
+            {currentImage?.videoUrl && (
+                 <button 
+                   onClick={handleDownloadVideo}
+                   className="flex items-center gap-2 text-xs font-medium bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition-colors shadow-sm"
+                 >
+                    <Download className="h-3.5 w-3.5" />
+                    {t.downloadVideo}
+                 </button>
+            )}
+        </div>
       </div>
 
-      {/* Main Image Display */}
-      <div className="flex-1 relative rounded-2xl bg-slate-900 overflow-hidden flex items-center justify-center shadow-inner min-h-0">
+      {/* Main Display Area */}
+      <div className="flex-1 relative rounded-2xl bg-slate-900 overflow-hidden flex items-center justify-center shadow-inner min-h-0 group">
+        
+        {/* Loading Overlay for Image Generation */}
         {isGenerating ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-white/80 z-10 bg-slate-900/50 backdrop-blur-sm">
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white/80 z-20 bg-slate-900/50 backdrop-blur-sm">
                 <div className="relative w-24 h-24 mb-6">
                     <div className="absolute inset-0 border-4 border-slate-700 rounded-full"></div>
                     <div className="absolute inset-0 border-4 border-t-indigo-500 border-r-indigo-500 border-b-transparent border-l-transparent rounded-full animate-spin"></div>
                 </div>
                 <p className="text-lg font-medium animate-pulse">{t.loading}</p>
                 <p className="text-sm text-white/50 mt-2">{t.loadingSub}</p>
+            </div>
+        ) : null}
+
+        {/* Loading Overlay for Video Generation */}
+        {isVideoGenerating ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-white/80 z-20 bg-slate-900/80 backdrop-blur-md">
+                <div className="relative w-20 h-20 mb-6">
+                    <div className="absolute inset-0 border-4 border-slate-700 rounded-full"></div>
+                    <div className="absolute inset-0 border-4 border-t-purple-500 border-r-purple-500 border-b-transparent border-l-transparent rounded-full animate-spin"></div>
+                </div>
+                <p className="text-lg font-medium animate-pulse text-purple-200">{t.videoGenerating}</p>
             </div>
         ) : null}
 
@@ -80,12 +125,24 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({
             </div>
         )}
 
-        {generatedImage && (
-            <img 
-                src={generatedImage} 
-                alt="Generated Model" 
-                className={`max-w-full max-h-full object-contain shadow-2xl transition-opacity duration-700 ${isGenerating ? 'opacity-50 blur-sm' : 'opacity-100'}`}
+        {/* Video Player */}
+        {generatedImage && currentImage.videoUrl ? (
+            <video 
+                src={currentImage.videoUrl} 
+                controls 
+                autoPlay 
+                loop 
+                className="max-w-full max-h-full object-contain shadow-2xl"
             />
+        ) : (
+             /* Image Display */
+            generatedImage && (
+                <img 
+                    src={generatedImage} 
+                    alt="Generated Model" 
+                    className={`max-w-full max-h-full object-contain shadow-2xl transition-opacity duration-700 ${isGenerating ? 'opacity-50 blur-sm' : 'opacity-100'}`}
+                />
+            )
         )}
       </div>
 
@@ -128,6 +185,12 @@ export const ResultDisplay: React.FC<ResultDisplayProps> = ({
                             alt="History" 
                             className="w-full h-full object-cover" 
                         />
+                        {/* Video Indicator in History */}
+                        {item.videoUrl && (
+                            <div className="absolute top-1 right-1 bg-purple-600 rounded-full p-0.5 shadow-sm">
+                                <Video className="w-2.5 h-2.5 text-white" />
+                            </div>
+                        )}
                         {isSelected && (
                             <div className="absolute inset-0 bg-indigo-900/20 flex items-center justify-center">
                                 <CheckCircle className="w-6 h-6 text-white drop-shadow-md" />

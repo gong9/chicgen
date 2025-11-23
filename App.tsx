@@ -4,7 +4,7 @@ import { ControlPanel } from './components/ControlPanel';
 import { ImageUpload } from './components/ImageUpload';
 import { ResultDisplay } from './components/ResultDisplay';
 import { GenerationSettings, Language, GeneratedResult } from './types';
-import { generateFashionImage } from './services/geminiService';
+import { generateFashionImage, generateFashionVideo } from './services/geminiService';
 import { translations } from './translations';
 
 export default function App() {
@@ -17,6 +17,7 @@ export default function App() {
   const [currentResult, setCurrentResult] = useState<GeneratedResult | null>(null);
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isVideoGenerating, setIsVideoGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [settings, setSettings] = useState<GenerationSettings>({
@@ -87,6 +88,59 @@ export default function App() {
     }
   };
 
+  const handleGenerateVideo = async (resultId: string) => {
+    const targetResult = history.find(h => h.id === resultId);
+    if (!targetResult || !targetResult.settings) return;
+
+    // API Key Check for Veo
+    if (window.aistudio) {
+        try {
+            const hasKey = await window.aistudio.hasSelectedApiKey();
+            if (!hasKey) {
+                await window.aistudio.openSelectKey();
+            }
+        } catch (e) {
+            console.error("API Key check failed", e);
+            // Fallback: proceed and let the API call fail if need be, or show error
+        }
+    }
+
+    setIsVideoGenerating(true);
+    setError(null);
+
+    try {
+        const videoUrl = await generateFashionVideo(targetResult.imageUrl, targetResult.settings);
+        
+        // Update history item with video URL
+        const updatedHistory = history.map(item => {
+            if (item.id === resultId) {
+                return { ...item, videoUrl };
+            }
+            return item;
+        });
+
+        setHistory(updatedHistory);
+        
+        // Update current view if viewing this item
+        if (currentResult?.id === resultId) {
+            setCurrentResult(prev => prev ? ({ ...prev, videoUrl }) : null);
+        }
+
+    } catch (err: any) {
+        console.error("Video Generation Error:", err);
+        setError(translations[language].result.videoError || "Video generation failed.");
+        
+        // If it's a "not found" error, it might be the key. Reset key state if possible.
+        if (err.message && err.message.includes("Requested entity was not found")) {
+            if (window.aistudio) {
+                await window.aistudio.openSelectKey();
+            }
+        }
+    } finally {
+        setIsVideoGenerating(false);
+    }
+  };
+
   const handleClearHistory = () => {
     if (window.confirm(language === 'zh' ? '确定要清空所有历史记录吗？' : 'Are you sure you want to clear all history?')) {
         setHistory([]);
@@ -136,9 +190,11 @@ export default function App() {
                 currentImage={currentResult}
                 history={history}
                 isGenerating={isGenerating}
+                isVideoGenerating={isVideoGenerating}
                 language={language}
                 onSelectHistory={setCurrentResult}
                 onClearHistory={handleClearHistory}
+                onGenerateVideo={handleGenerateVideo}
              />
           </div>
         </div>

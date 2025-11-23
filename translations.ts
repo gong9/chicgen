@@ -61,6 +61,10 @@ export const translations = {
       emptySub: '请在左侧上传图片并点击“生成大片”',
       historyTitle: '历史记录',
       clearHistory: '清空',
+      generateVideo: '生成动态展示 (Veo)',
+      videoGenerating: '视频渲染中...',
+      videoError: '视频生成失败',
+      downloadVideo: '下载视频',
     },
     errors: {
       genFailed: '生成失败，请重试。',
@@ -128,6 +132,10 @@ export const translations = {
       emptySub: 'Upload a garment and click "Generate Photoshoot"',
       historyTitle: 'History',
       clearHistory: 'Clear',
+      generateVideo: 'Generate Video (Veo)',
+      videoGenerating: 'Rendering Video...',
+      videoError: 'Video Failed',
+      downloadVideo: 'Download Video',
     },
     errors: {
       genFailed: 'Failed to generate image. Please try again.',

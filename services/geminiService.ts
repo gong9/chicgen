@@ -1,15 +1,16 @@
 import { GoogleGenAI } from "@google/genai";
 import { GenerationSettings, ENVIRONMENTS, VIBES } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const getClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateFashionImage = async (
   base64Image: string,
   mimeType: string,
   settings: GenerationSettings
 ): Promise<string> => {
+  const ai = getClient();
   const environmentPrompt = ENVIRONMENTS.find(e => e.id === settings.environment)?.prompt || settings.environment;
   const vibePrompt = VIBES.find(v => v.id === settings.vibe)?.prompt || settings.vibe;
 
@@ -107,4 +108,58 @@ export const generateFashionImage = async (
   }
 
   throw new Error("Failed to generate image after multiple attempts.");
+};
+
+export const generateFashionVideo = async (
+  imageBase64: string,
+  settings: GenerationSettings
+): Promise<string> => {
+  const ai = getClient();
+  
+  // Clean base64 string if it has prefix
+  const rawBase64 = imageBase64.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
+
+  const environmentPrompt = ENVIRONMENTS.find(e => e.id === settings.environment)?.prompt || settings.environment;
+  
+  // Prompt optimized for fashion ecommerce video
+  const prompt = `
+    Cinematic fashion commercial. 
+    A professional model wearing the outfit is posing and turning slightly to show off the clothing.
+    The fabric moves naturally. 
+    High fashion lighting, photorealistic, 4k resolution, slow motion.
+    Environment: ${environmentPrompt}
+  `;
+
+  let operation = await ai.models.generateVideos({
+    model: 'veo-3.1-fast-generate-preview',
+    prompt: prompt,
+    image: {
+      imageBytes: rawBase64,
+      mimeType: 'image/png', 
+    },
+    config: {
+      numberOfVideos: 1,
+      resolution: '720p',
+      aspectRatio: '9:16'
+    }
+  });
+
+  while (!operation.done) {
+    await wait(5000); // Poll every 5 seconds
+    operation = await ai.operations.getVideosOperation({operation: operation});
+  }
+
+  const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
+  if (!videoUri) {
+    throw new Error("Video generation failed: No URI returned.");
+  }
+
+  // Fetch the actual video bytes using the key
+  const response = await fetch(`${videoUri}&key=${process.env.API_KEY}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch video: ${response.statusText}`);
+  }
+  
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
 };
